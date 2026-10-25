@@ -1,0 +1,53 @@
+{
+  "name": "cadxstudio",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "lint": "tsc --noEmit",
+    "bootstrap:admin": "tsx scripts/bootstrap-admin.ts",
+    "db:generate": "prisma generate && prisma generate --schema prisma/schema.postgres.prisma",
+    "db:push": "prisma db push",
+    "db:migrate:sqlite": "prisma migrate deploy --schema prisma/schema.prisma",
+    "db:migrate:postgres": "prisma migrate deploy --schema prisma/schema.postgres.prisma",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.7.0",
+    "@prisma/adapter-pg": "^7.7.0",
+    "@prisma/client": "^7.10.1",
+    "bcryptjs": "^3.0.2",
+    "better-sqlite3": "^12.8.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.16.0",
+    "next": "^16.4.2",
+    "next-auth": "^4.24.15",
+    "pg": "^8.20.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "tailwind-merge": "^3.5.0",
+    "three": "^0.174.0",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^20.19.39",
+    "@types/pg": "^8.18.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.174.0",
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.10",
+    "prisma": "^7.10.1",
+    "tailwindcss": "^3.4.19",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.4"
+  }
+}

@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cadxstudio
+      POSTGRES_PASSWORD: cadxstudio_prod_password
+      POSTGRES_DB: cadxstudio
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    ports:
+      - '3000:3000'
+    environment:
+      DATABASE_URL: 'postgresql://cadxstudio:cadxstudio_prod_password@postgres:5432/cadxstudio?schema=public'
+      NEXTAUTH_URL: 'http://localhost:3000'
+      NEXTAUTH_SECRET: 'replace-with-strong-production-secret-32-bytes'
+
+volumes:
+  pgdata:

@@ -1,0 +1,301 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  ENGINEER
+  MEMBER
+  VIEWER
+}
+
+enum InvitationStatus {
+  ACTIVE
+  USED
+  REVOKED
+  EXPIRED
+}
+
+model User {
+  id                     String                 @id @default(cuid())
+  email                  String                 @unique
+  name                   String
+  passwordHash           String
+  role                   Role                   @default(MEMBER)
+  planTier               String                 @default("pro")
+  creditsBalance         Int                    @default(200)
+  themeMode              String                 @default("dark")
+  onboardingDone         Boolean                @default(false)
+  isActive               Boolean                @default(true)
+  lastLoginAt            DateTime?
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  createdInvitations     Invitation[]           @relation("InvitationCreator")
+  usedInvitations        Invitation[]           @relation("InvitationConsumer")
+  invitationRedemptions  InvitationRedemption[]
+  auditLogs              AuditLog[]             @relation("AuditActor")
+  projects               DesignProject[]
+  teamMemberships        TeamMember[]
+  createdTeams           Team[]                 @relation("TeamCreator")
+  sharedTeamProjects     TeamProject[]          @relation("TeamProjectSharer")
+  submissions            TeamProjectSubmission[] @relation("SubmissionAuthor")
+  submissionComments     TeamSubmissionComment[]
+  tokenUsage             TokenUsage[]
+  paymentTransactions    PaymentTransaction[]
+
+  @@index([role])
+  @@index([email])
+}
+
+model Invitation {
+  id          String                 @id @default(cuid())
+  code        String                 @unique
+  email       String?
+  role        Role                   @default(MEMBER)
+  status      InvitationStatus       @default(ACTIVE)
+  maxUses     Int                    @default(1)
+  usedCount   Int                    @default(0)
+  note        String?
+  expiresAt   DateTime
+  usedAt      DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  createdById String?
+  createdBy   User?                  @relation("InvitationCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  usedById    String?
+  usedBy      User?                  @relation("InvitationConsumer", fields: [usedById], references: [id], onDelete: SetNull)
+
+  redemptions InvitationRedemption[]
+
+  @@index([status, expiresAt])
+  @@index([email])
+}
+
+model InvitationRedemption {
+  id           String     @id @default(cuid())
+  invitationId String
+  userId       String
+  ipAddress    String?
+  userAgent    String?
+  redeemedAt   DateTime   @default(now())
+
+  invitation   Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([invitationId, userId])
+  @@index([userId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorEmail String?
+  action     String
+  targetType String?
+  targetId   String?
+  details    String   @default("{}")
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  actor      User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([action])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+model DesignProject {
+  id                      String             @id @default(cuid())
+  userId                  String
+  name                    String
+  code                    String
+  parameters              String             @default("{}")
+  messages                String             @default("[]")
+  moodboardJson           String             @default("{}")
+  renderConfigJson        String             @default("{}")
+  drawingConfigJson       String             @default("{}")
+  forkedFromTeamProjectId String?
+  forkedTeamId            String?
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+
+  user                    User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shares                  ProjectShare[]
+  shareLinks              ProjectShareLink[]
+  teamProjects            TeamProject[]
+
+  @@index([userId, updatedAt])
+}
+
+model ProjectShare {
+  id          String        @id @default(cuid())
+  projectId   String
+  sharedEmail String
+  permission  String        @default("view")
+  createdAt   DateTime      @default(now())
+
+  project     DesignProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, sharedEmail])
+}
+
+model ProjectShareLink {
+  id        String        @id @default(cuid())
+  projectId String
+  token     String        @unique
+  isActive  Boolean       @default(true)
+  expiresAt DateTime?
+  createdAt DateTime      @default(now())
+
+  project   DesignProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+}
+
+model Team {
+  id          String        @id @default(cuid())
+  name        String
+  description String        @default("")
+  createdById String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  createdBy   User          @relation("TeamCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  members     TeamMember[]
+  projects    TeamProject[]
+}
+
+model TeamMember {
+  id       String   @id @default(cuid())
+  teamId   String
+  userId   String
+  role     String   @default("editor")
+  joinedAt DateTime @default(now())
+
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+}
+
+model TeamProject {
+  id              String                  @id @default(cuid())
+  teamId          String
+  sourceProjectId String?
+  sharedById      String
+  name            String
+  description     String                  @default("")
+  code            String
+  parameters      String                  @default("{}")
+  approvalStatus  String                  @default("approved")
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  team            Team                    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  sourceProject   DesignProject?          @relation(fields: [sourceProjectId], references: [id], onDelete: SetNull)
+  sharedBy        User                    @relation("TeamProjectSharer", fields: [sharedById], references: [id], onDelete: Cascade)
+  submissions     TeamProjectSubmission[]
+
+  @@index([teamId, updatedAt])
+}
+
+model TeamProjectSubmission {
+  id                 String                  @id @default(cuid())
+  teamProjectId      String
+  submittedById      String
+  title              String
+  description        String                  @default("")
+  proposedCode       String
+  proposedParameters String                  @default("{}")
+  status             String                  @default("pending")
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  teamProject        TeamProject             @relation(fields: [teamProjectId], references: [id], onDelete: Cascade)
+  submittedBy        User                    @relation("SubmissionAuthor", fields: [submittedById], references: [id], onDelete: Cascade)
+  comments           TeamSubmissionComment[]
+
+  @@index([teamProjectId, createdAt])
+}
+
+model TeamSubmissionComment {
+  id           String                @id @default(cuid())
+  submissionId String
+  authorId     String
+  content      String
+  createdAt    DateTime              @default(now())
+
+  submission   TeamProjectSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  author       User                  @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+model TokenUsage {
+  id               String   @id @default(cuid())
+  userId           String
+  operation        String
+  model            String   @default("cadx-b-rep-v2")
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  creditsDeducted  Int      @default(1)
+  createdAt        DateTime @default(now())
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model PaymentTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  planId      String
+  description String
+  amountCents Int
+  currency    String   @default("USD")
+  creditsAdded Int     @default(0)
+  status      String   @default("succeeded")
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model BlogPost {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  excerpt     String
+  content     String
+  category    String
+  author      String
+  readTime    String
+  coverImage  String?
+  published   Boolean  @default(true)
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([slug])
+}
+
+model LeadInquiry {
+  id          String   @id @default(cuid())
+  type        String
+  name        String
+  email       String
+  company     String   @default("")
+  role        String   @default("")
+  payloadJson String   @default("{}")
+  status      String   @default("new")
+  createdAt   DateTime @default(now())
+
+  @@index([type, createdAt])
+}
